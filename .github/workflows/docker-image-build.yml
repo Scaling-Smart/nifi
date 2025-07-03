@@ -1,8 +1,44 @@
-name: Build NiFi Docker Image
+# Licensed to the Apache Software Foundation (ASF) under one
+# or more contributor license agreements.  See the NOTICE file
+# distributed with this work for additional information
+# regarding copyright ownership.  The ASF licenses this file
+# to you under the Apache License, Version 2.0 (the
+# "License"); you may not use this file except in compliance
+# with the License.  You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+name: docker-tests
 
 on:
   push:
+    paths:
+      - '.github/workflows/docker-tests.yml'
+      - 'nifi-assembly/**'
+      - 'nifi-docker/**'
+      - 'nifi-registry/nifi-registry-assembly/**'
+      - 'nifi-registry/nifi-registry-docker-maven/**'
+      - 'nifi-toolkit/nifi-toolkit-assembly/**'
+      - 'nifi-toolkit/nifi-toolkit-cli/**'
+      - 'minifi/minifi-assembly/**'
+      - 'minifi/minifi-docker/**'
   pull_request:
+    paths:
+      - '.github/workflows/docker-tests.yml'
+      - 'nifi-assembly/**'
+      - 'nifi-docker/**'
+      - 'nifi-registry/nifi-registry-assembly/**'
+      - 'nifi-registry/nifi-registry-docker-maven/**'
+      - 'nifi-toolkit/nifi-toolkit-assembly/**'
+      - 'nifi-toolkit/nifi-toolkit-cli/**'
+      - 'minifi/minifi-assembly/**'
+      - 'minifi/minifi-docker/**'
+
 env:
   DEFAULT_MAVEN_OPTS: >-
     -Xmx4g
@@ -49,8 +85,15 @@ env:
     -pl nifi-docker/dockermaven
     -pl nifi-registry/nifi-registry-docker-maven/dockermaven
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  build:
+  build_and_test:
     timeout-minutes: 60
     runs-on: ubuntu-latest
     name: Ubuntu Java 21
@@ -99,5 +142,11 @@ jobs:
           ${{ env.MAVEN_CLEAN_PROJECTS }}
           && rm -rf nifi-assembly/target/nifi-*-bin/ nifi-registry/nifi-registry-assembly/target/nifi-registry-*-bin/
           && rm -rf ~/.m2/repository/*
-      - name: Build Docker image with Maven
-        run: mvn -Pdocker -pl nifi-docker/dockermaven -am -DskipTests package
+      - name: Run Docker Tests
+        env:
+          MAVEN_OPTS: >-
+            ${{ env.DEFAULT_MAVEN_OPTS }}
+        run: >
+          ${{ env.MAVEN_COMMAND }}
+          ${{ env.MAVEN_DOCKER_ARGUMENTS }}
+          ${{ env.MAVEN_DOCKER_PROJECTS }}
