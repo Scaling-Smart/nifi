@@ -71,6 +71,7 @@ concurrency:
 
 permissions:
   contents: read
+  packages: write
 
 jobs:
   build_and_test:
@@ -141,10 +142,19 @@ jobs:
       - name: Tag Docker and push Image
         run: |
           if [[ "${{ github.ref_type }}" == "tag" ]]; then
-            TAG=${{ github.ref_name }}
+            GHCR_TAG="${{ github.ref_name }}"
           else
-            TAG=latest
+            GHCR_TAG="latest"
           fi
-          docker images  # list images to confirm tag
-          docker tag apache/nifi ghcr.io/scaling-smart/nifi:$TAG
-          docker push ghcr.io/scaling-smart/nifi:$TAG
+      
+          echo "🔍 Liste des images Docker Apache..."
+          docker images | grep '^apache/' | while read -r REPO TAG IMAGE_ID CREATED SIZE; do
+            echo "➡️ Traitement image: $REPO:$TAG ($IMAGE_ID)"
+            # Extraire le nom court (ex: nifi, nifi-registry, nifi-minifi...)
+            NAME=$(echo "$REPO" | cut -d/ -f2)
+            DEST="ghcr.io/scaling-smart/${NAME}:${TAG}"
+            echo "🔁 Tag vers $DEST"
+            docker tag "$IMAGE_ID" "$DEST"
+            echo "📤 Push de $DEST"
+            docker push "$DEST"
+          done
